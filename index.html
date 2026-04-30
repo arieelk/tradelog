@@ -301,13 +301,7 @@ canvas{display:block}
       <div style="font-family:var(--font-head);font-size:26px;font-weight:700;color:var(--green)" id="dash-capital-val">$0.00</div>
       <div style="font-size:11px;color:var(--text3);margin-top:3px" id="dash-capital-sub">base $108.50</div>
     </div>
-    <button onclick="editBase()" style="background:none;border:1px solid var(--border2);border-radius:8px;color:var(--text3);font-size:11px;padding:6px 12px;cursor:pointer;font-family:var(--font-mono)">editar base</button>
-    <div id="dash-base-wrap" style="display:none;position:absolute;right:14px;top:70px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px;z-index:10;display:none">
-      <div style="display:flex;gap:6px;align-items:center">
-        <input id="dash-base-input" type="number" step="0.01" placeholder="Capital base" style="flex:1;font-size:14px;padding:6px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg4);color:var(--text);font-family:var(--font-mono);width:130px">
-        <button onclick="saveBaseFromDash()" style="background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:12px;padding:6px 12px;cursor:pointer;font-family:var(--font-head);font-weight:600">OK</button>
-      </div>
-    </div>
+
   </div>
 
   <div class="metric-grid">
@@ -605,8 +599,13 @@ async function dbFetch(path, opts={}){
 }
 
 async function loadTrades(){
-  setStatus('Cargando trades...');
+  setStatus('Cargando...');
   try{
+    // load base capital
+    try{
+      const cfg=await dbFetch('config?key=eq.base_capital&select=value');
+      if(cfg&&cfg.length) _base=parseFloat(cfg[0].value)||108.50;
+    } catch(e){ _base=108.50; }
     const data = await dbFetch('trades?order=id.desc&select=*');
     trades = data.map(row=>({
       id: row.id,
@@ -654,38 +653,25 @@ const now = new Date();
 calYear = now.getFullYear(); calMonth = now.getMonth();
 
 // ── SIDEBAR BALANCE ──────────────────────────────────────────
-function getBase(){ return parseFloat(localStorage.getItem('tradelog_base')||'108.50'); }
+let _base = 108.50;
+function getBase(){ return _base; }
 function editBase(){
-  const isMobile=window.innerWidth<=768;
-  if(isMobile){
-    const wrap=document.getElementById('dash-base-wrap');
-    const inp=document.getElementById('dash-base-input');
-    const showing=wrap.style.display==='flex'||wrap.style.display==='block';
-    wrap.style.display=showing?'none':'flex';
-    if(!showing){inp.value=getBase();inp.focus();inp.select();}
-  } else {
-    const wrap=document.getElementById('sb-base-wrap');
-    const inp=document.getElementById('sb-base-input');
-    const showing=wrap.style.display!=='none';
-    wrap.style.display=showing?'none':'block';
-    if(!showing){inp.value=getBase();inp.focus();inp.select();}
-  }
+  const wrap=document.getElementById('sb-base-wrap');
+  const inp=document.getElementById('sb-base-input');
+  const showing=wrap.style.display!=='none';
+  wrap.style.display=showing?'none':'block';
+  if(!showing){inp.value=getBase();inp.focus();inp.select();}
 }
-function saveBaseFromDash(){
-  const val=parseFloat(document.getElementById('dash-base-input').value);
-  if(!isNaN(val)&&val>=0){
-    localStorage.setItem('tradelog_base',val.toFixed(2));
-    document.getElementById('dash-base-wrap').style.display='none';
-    updateSidebar(); renderDashboard();
-  }
-}
-function saveBase(){
-  const val = parseFloat(document.getElementById('sb-base-input').value);
-  if(!isNaN(val) && val >= 0){
-    localStorage.setItem('tradelog_base', val.toFixed(2));
+async function saveBase(){
+  const val=parseFloat(document.getElementById('sb-base-input').value);
+  if(isNaN(val)||val<0) return;
+  setStatus('Guardando capital base...');
+  try{
+    await dbFetch('config?on_conflict=key',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates'},body:JSON.stringify({key:'base_capital',value:val.toFixed(2)})});
+    _base=val;
     document.getElementById('sb-base-wrap').style.display='none';
-    updateSidebar();
-  }
+    updateSidebar(); renderDashboard(); setStatus('Capital base guardado');
+  } catch(e){ setStatus('Error al guardar capital base: '+e.message,true); }
 }
 function updateSidebar(){
   const pnl = trades.filter(t=>t.pnl!=null).reduce((a,t)=>a+t.pnl,0);
@@ -884,7 +870,7 @@ function renderDashboard(){
   capCard.style.display=isMobile?'flex':'none';
   const capPnl=trades.filter(t=>t.pnl!=null).reduce((a,t)=>a+t.pnl,0);
   document.getElementById('dash-capital-val').textContent='$'+(getBase()+capPnl).toFixed(2);
-  document.getElementById('dash-capital-sub').textContent='base $'+getBase().toFixed(2);
+  document.getElementById('dash-capital-sub').textContent='base $'+getBase().toFixed(2)+' · '+trades.length+' trades';
   document.getElementById('d-pnl').textContent=(m.pnl>=0?'+':'')+m.pnl.toFixed(2)+' USD';
   document.getElementById('d-pnl').className='metric-value '+(m.pnl>=0?'green':'red');
   document.getElementById('d-pnl-sub').textContent=m.total+' trades · base $'+getBase().toFixed(2);
