@@ -241,6 +241,12 @@ canvas{display:block}
   .btn{width:100%;justify-content:center;padding:12px}
 }
 
+/* LIGHTBOX */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:1000;align-items:center;justify-content:center;padding:20px}
+#lightbox.open{display:flex}
+#lightbox img{max-width:100%;max-height:100vh;object-fit:contain;border-radius:10px}
+#lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:20px;line-height:1;z-index:1001;-webkit-tap-highlight-color:transparent}
+
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
@@ -563,6 +569,12 @@ canvas{display:block}
 </div>
 
 </main>
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="closeLightbox(event)">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="Captura del trade">
+</div>
+
 <!-- MOBILE BOTTOM NAV -->
 <nav class="mobile-nav">
   <div class="mobile-nav-inner">
@@ -844,7 +856,18 @@ function attachImg(event,id){
   };
   reader.readAsDataURL(file);
 }
-function openImg(id){ const t=trades.find(t=>t.id===id); if(!t||!t.img) return; const w=window.open('','_blank'); w.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${t.img}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`); }
+function openImg(id){
+  const t=trades.find(tr=>tr.id===id); if(!t||!t.img) return;
+  document.getElementById('lightbox-img').src=t.img;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeLightbox(e){
+  if(e&&e.target!==document.getElementById('lightbox')&&e.target!==document.getElementById('lightbox-close')&&e.target.id!=='lightbox-close') return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src='';
+  document.body.style.overflow='';
+}
 
 // ── COMPUTE METRICS ──────────────────────────────────────────
 function metrics(){
