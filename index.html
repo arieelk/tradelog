@@ -718,7 +718,7 @@ async function loadTrades(){
       dbFetch('trades?order=id.desc&select=*')
     ]);
     accounts = accsData||[];
-    if(accounts.length && currentAccountId===null) currentAccountId=accounts[0].id;
+    // Start in global view so all trades are visible
     trades = (data||[]).map(row=>({
       id: row.id,
       fecha: row.fecha,
@@ -776,7 +776,8 @@ function getBase(){
 }
 function getAccountTrades(){
   if(currentAccountId===null) return trades;
-  return trades.filter(t=>t.account_id===currentAccountId);
+  // include trades with no account assigned so they're never lost
+  return trades.filter(t=>t.account_id===currentAccountId || t.account_id===null);
 }
 function toggleAccountsDropdown(){
   const dd=document.getElementById('accounts-dropdown');
@@ -814,7 +815,7 @@ async function saveAccount(){
     } else {
       accounts.push({id,name,type,balance_base:base});
     }
-    if(!editId && currentAccountId===null && accounts.length===1) currentAccountId=id;
+    // don't auto-switch account on creation — user selects manually
     closeAccountModal(); renderAccountsList(); updateSidebar(); renderDashboard(); setStatus('Cuenta guardada');
   } catch(e){ setStatus('Error: '+e.message,true); }
 }
@@ -1209,7 +1210,7 @@ function renderHistorial(){
   document.getElementById('hist-count-detail').textContent='Live: '+live+' · Backtest: '+bt;
   const list=document.getElementById('trade-list');
   if(!filtered.length){ list.innerHTML='<div class="empty">Sin trades en esta categoría.</div>'; return; }
-  list.innerHTML=filtered.map(t=>{
+  list.innerHTML=filtered.map(t=>{ try {
     const rBadge=t.resultado==='WIN'?'badge-win':t.resultado==='LOSS'?'badge-loss':'badge-be';
     const dBadge=t.dir==='LONG'?'badge-long':'badge-short';
 
@@ -1235,6 +1236,10 @@ function renderHistorial(){
       </div>
       ${imgSection}
     </div>`;
+  } catch(err){
+    console.error('Error renderizando trade', t.id, err);
+    return `<div style="padding:12px 16px;color:var(--red);font-size:11px;background:var(--red-dim);border-radius:8px;margin-bottom:8px;font-family:var(--font-mono)">⚠ Error al mostrar trade ${t.id} — ${err.message}</div>`;
+  }
   }).join('');
 }
 
