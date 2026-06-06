@@ -872,4 +872,56 @@ function exportCSV(){
   const t=getAccountTrades();if(!t.length){alert('Sin trades.');return;}
   const h=['Fecha','Horario','Activo','Direccion','Sesion','Riesgo','Resultado','PnL','Contexto','Niveles','Trigger','EmocionAntes','EmocionCierre','Leccion'];
   const esc=v=>v==null?'':String(v).match(/[,"\n]/)?'"'+String(v).replace(/"/g,'""')+'"':String(v);
-  const rows=t.map(x=>[esc(x.fecha),esc(x.time
+  const rows=t.map(x=>[esc(x.fecha),esc(x.time||''),esc(x.activo),esc(x.dir),esc(x.sesion),esc('$'+x.riesgo),esc(x.resultado),esc(x.pnl??''),esc(x.contexto||''),esc((x.niveles||[]).join(' | ')),esc(x.trigger),esc(x.emoAntes),esc(x.emoCierre),esc(x.leccion)].join(','));
+  const blob=new Blob(['\uFEFF'+[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tradelog_'+new Date().toISOString().split('T')[0]+'.csv';a.click();
+}
+function exportJSON(){
+  const t=getAccountTrades();if(!t.length){alert('Sin trades.');return;}
+  const blob=new Blob([JSON.stringify(t,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tradelog_backup_'+new Date().toISOString().split('T')[0]+'.json';a.click();
+}
+function importJSON(e){
+  const file=e.target.files[0];if(!file) return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    try{
+      const imp=JSON.parse(ev.target.result);if(!Array.isArray(imp)) throw new Error('Formato inválido');
+      const ids=new Set(trades.map(t=>t.id));
+      const news=imp.filter(t=>!ids.has(t.id));
+      if(!news.length){showAlert('alert-import-ok');return;}
+      setStatus('Importando '+news.length+' trades...');
+      const rows=news.map(t=>tradeToRow({...t,emoAntes:t.emoAntes||t.emo_antes,emoCierre:t.emoCierre||t.emo_cierre}));
+      await db('trades?on_conflict=id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(rows)});
+      await loadTrades();showAlert('alert-import-ok');setStatus('Importación completa');
+    }catch(err){showAlert('alert-import-err');setStatus('Error: '+err.message,true);}
+    e.target.value='';
+  };
+  r.readAsText(file);
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showSection(name,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.mob-btn').forEach(n=>n.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.mob-btn[data-sec="'+name+'"]').forEach(b=>b.classList.add('active'));
+  if(name==='dashboard') renderDashboard();
+  if(name==='historial') renderHistorial();
+  if(name==='calendario') renderCalendar();
+  if(name==='insights') renderInsights();
+  window.scrollTo(0,0);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+const nowBsAs=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}));
+const padZ=n=>String(n).padStart(2,'0');
+document.getElementById('f-fecha').value=nowBsAs.getFullYear()+'-'+padZ(nowBsAs.getMonth()+1)+'-'+padZ(nowBsAs.getDate());
+document.getElementById('f-time').value=padZ(nowBsAs.getHours())+':'+padZ(nowBsAs.getMinutes());
+window.addEventListener('resize',()=>{const c=document.getElementById('dash-capital-card');if(c)c.style.display=window.innerWidth<=768?'flex':'none';});
+loadTrades();
+</script>
+</body>
+</html>
