@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disciplina // Habit Ledger</title>
+<style>
+  :root{
+    --bg: #0a0d12;
+    --panel: #11161d;
+    --panel-2: #161d26;
+    --border: #232b36;
+    --text: #e6ebf1;
+    --text-dim: #6b7888;
+    --text-mid: #9aa7b8;
+    --green: #2fd07a;
+    --green-dim: #1a4d35;
+    --red: #ff5c5c;
+    --red-dim: #3a1f22;
+    --accent: #ffb938;
+    --accent-dim: #3a2f14;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* subtle grid background */
+  body::before{
+    content:"";
+    position: fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app{
+    position: relative;
+    z-index: 1;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  /* ===== HEADER ===== */
+  header{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .brand{
+    display:flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .brand .ticker{
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .brand h1{
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .brand h1 .dot{ color: var(--green); }
+
+  .stats-row{
+    display:flex;
+    gap: 22px;
+    align-items: center;
+  }
+
+  .stat{
+    text-align: right;
+    font-family: var(--mono);
+  }
+
+  .stat .label{
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 2px;
+  }
+
+  .stat .value{
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .stat .value.green{ color: var(--green); }
+  .stat .value.accent{ color: var(--accent); }
+
+  /* ===== CALENDAR ===== */
+  .calendar-panel{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .cal-header{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .cal-header .month-label{
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+  }
+
+  .cal-header .month-label .year{
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-left: 6px;
+  }
+
+  .cal-nav{
+    display:flex;
+    gap: 8px;
+  }
+
+  .nav-btn{
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text-mid);
+    border-radius: 6px;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family: var(--mono);
+    font-size: 14px;
+    transition: all 0.15s ease;
+  }
+  .nav-btn:hover{
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .weekdays{
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .weekdays span{
+    text-align:center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding-bottom: 4px;
+  }
+
+  .days-grid{
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day-cell{
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    position: relative;
+    font-family: var(--mono);
+    transition: transform 0.1s ease, border-color 0.15s ease;
+  }
+  .day-cell:hover{
+    border-color: var(--text-mid);
+    transform: translateY(-1px);
+  }
+  .day-cell.empty{
+    visibility: hidden;
+    cursor: default;
+  }
+  .day-cell .num{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-mid);
+  }
+  .day-cell.today{
+    border-color: var(--accent);
+  }
+  .day-cell.today .num{
+    color: var(--accent);
+  }
+  .day-cell.future{
+    opacity: 0.35;
+  }
+  .day-cell.future:hover{
+    transform: none;
+    border-color: var(--border);
+  }
+
+  /* completion states */
+  .day-cell.complete{
+    background: var(--green-dim);
+    border-color: var(--green);
+  }
+  .day-cell.complete .num{ color: var(--green); }
+
+  .day-cell.partial{
+    background: var(--panel-2);
+  }
+  .day-cell.partial .progress-dot{
+    display:flex;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .day-cell.partial .progress-dot span{
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .day-cell.partial .progress-dot span.filled{
+    background: var(--accent);
+  }
+
+  .day-cell.missed{
+    background: var(--red-dim);
+    border-color: rgba(255,92,92,0.25);
+  }
+  .day-cell.missed .num{ color: rgba(255,92,92,0.65); }
+
+  /* ===== LEGEND ===== */
+  .legend{
+    display:flex;
+    gap: 18px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .legend .item{
+    display:flex;
+    align-items:center;
+    gap: 6px;
+  }
+  .legend .swatch{
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+  .legend .swatch.green{ background: var(--green-dim); border-color: var(--green); }
+  .legend .swatch.partial{ background: var(--panel-2); }
+  .legend .swatch.missed{ background: var(--red-dim); border-color: rgba(255,92,92,0.25); }
+
+  /* ===== HABITS MANAGEMENT PANEL ===== */
+  .habits-panel{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .panel-title{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .panel-title h2{
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-mid);
+    font-weight: 700;
+  }
+
+  .add-habit-btn{
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor:pointer;
+    transition: all 0.15s ease;
+  }
+  .add-habit-btn:hover{
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .habit-row{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .habit-row .left{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+  }
+  .habit-row .index{
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    width: 22px;
+  }
+  .habit-row .name-input{
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--sans);
+    outline: none;
+    width: 220px;
+  }
+  .habit-row .name-input:focus{
+    color: var(--green);
+  }
+  .habit-row .remove-btn{
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 4px;
+    transition: color 0.15s ease;
+  }
+  .habit-row .remove-btn:hover{
+    color: var(--red);
+  }
+
+  .empty-habits{
+    text-align:center;
+    padding: 24px 0;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  /* ===== MODAL ===== */
+  .modal-overlay{
+    position: fixed;
+    inset:0;
+    background: rgba(5,7,10,0.7);
+    backdrop-filter: blur(3px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal-overlay.open{ display:flex; }
+
+  .modal{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 420px;
+    padding: 22px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .modal-header{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+  .modal-header .date-label{
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: capitalize;
+  }
+  .modal-header .close-btn{
+    background: transparent;
+    border:none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor:pointer;
+    line-height: 1;
+    padding: 0 0 0 12px;
+  }
+  .modal-header .close-btn:hover{ color: var(--text); }
+
+  .modal .status-line{
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .modal .status-line.complete{ color: var(--green); }
+  .modal .status-line.missed{ color: var(--red); }
+
+  .checklist{
+    display:flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 4px;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .check-item{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-2);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .check-item:hover{
+    border-color: var(--text-mid);
+  }
+  .check-item.checked{
+    border-color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .check-box{
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 1.5px solid var(--text-dim);
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: all 0.15s ease;
+  }
+  .check-item.checked .check-box{
+    border-color: var(--green);
+    background: var(--green);
+  }
+  .check-box svg{
+    width: 12px;
+    height: 12px;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+  .check-item.checked .check-box svg{
+    opacity: 1;
+  }
+
+  .check-item .label{
+    font-size: 14px;
+    color: var(--text);
+  }
+  .check-item.checked .label{
+    color: var(--green);
+  }
+
+  .modal-empty{
+    text-align:center;
+    padding: 30px 10px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+
+  /* ===== TOAST / SYNC INDICATOR ===== */
+  .sync-indicator{
+    position: fixed;
+    bottom: 18px;
+    right: 18px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 6px;
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    z-index: 60;
+    transition: opacity 0.3s ease;
+  }
+  .sync-indicator .pulse{
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .sync-indicator.ok .pulse{ background: var(--green); }
+  .sync-indicator.error .pulse{ background: var(--red); }
+  .sync-indicator.syncing .pulse{
+    background: var(--accent);
+    animation: pulse 1s infinite ease-in-out;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity: 1; }
+    50%{ opacity: 0.3; }
+  }
+
+  /* responsive */
+  @media (max-width: 560px){
+    .stats-row{ gap: 14px; }
+    .stat .value{ font-size: 16px; }
+    .brand h1{ font-size: 18px; }
+    .habit-row .name-input{ width: 140px; }
+    .day-cell .num{ font-size: 11px; }
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar{ width: 6px; }
+  ::-webkit-scrollbar-thumb{ background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-track{ background: transparent; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <span class="ticker">// disciplina diaria — execution log</span>
+      <h1><span class="dot">●</span> Habit Ledger</h1>
+    </div>
+    <div class="stats-row">
+      <div class="stat">
+        <div class="label">Racha actual</div>
+        <div class="value accent" id="streakValue">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Win rate (mes)</div>
+        <div class="value green" id="winrateValue">0%</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="calendar-panel">
+    <div class="cal-header">
+      <div class="month-label" id="monthLabel">— <span class="year"></span></div>
+      <div class="cal-nav">
+        <button class="nav-btn" id="prevMonth">‹</button>
+        <button class="nav-btn" id="nextMonth">›</button>
+      </div>
+    </div>
+
+    <div class="weekdays">
+      <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+    </div>
+    <div class="days-grid" id="daysGrid"></div>
+
+    <div class="legend">
+      <div class="item"><span class="swatch green"></span> Día cumplido (100%)</div>
+      <div class="item"><span class="swatch partial"></span> Parcial / pendiente</div>
+      <div class="item"><span class="swatch missed"></span> Día fallado</div>
+    </div>
+  </div>
+
+  <div class="habits-panel">
+    <div class="panel-title">
+      <h2>Hábitos diarios</h2>
+      <button class="add-habit-btn" id="addHabitBtn">+ Agregar hábito</button>
+    </div>
+    <div id="habitsList"></div>
+  </div>
+
+</div>
+
+<!-- Day Modal -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="date-label" id="modalDateLabel">—</div>
+      <button class="close-btn" id="closeModal">✕</button>
+    </div>
+    <div class="status-line" id="modalStatus">0 / 0 completados</div>
+    <div class="checklist" id="modalChecklist"></div>
+  </div>
+</div>
+
+<div class="sync-indicator" id="syncIndicator">
+  <span class="pulse"></span>
+  <span id="syncText">Conectando...</span>
+</div>
+
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================
+   CONFIGURACIÓN SUPABASE
+   ---------------------------------------------------------
+   1. Crear un proyecto nuevo en https://supabase.com
+   2. Ir a Project Settings > API
+   3. Pegar acá la "Project URL" y la "anon public" key
+   ========================================================= */
+const SUPABASE_URL = 'https://psiqfraiudcuoznabpzu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzaXFmcmFpdWRjdW96bmFicHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTM1MzIsImV4cCI6MjA5Njg4OTUzMn0.ZgoR_BNrmtyx8IwT6VwJXYnq97p7IFO8VLQerxDNark';
+
+let supabase = null;
+let supabaseReady = false;
+try {
+  if (SUPABASE_URL !== 'https://psiqfraiudcuoznabpzu.supabase.co' && SUPABASE_ANON_KEY !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzaXFmcmFpdWRjdW96bmFicHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTM1MzIsImV4cCI6MjA5Njg4OTUzMn0.ZgoR_BNrmtyx8IwT6VwJXYnq97p7IFO8VLQerxDNark') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseReady = true;
+  }
+} catch (e) {
+  console.error('Error inicializando Supabase', e);
+}
+
+/* =========================================================
+   ESTADO
+   - habits: [{id, name}]
+   - logs: { 'YYYY-MM-DD': { habitId: true/false, ... } }
+   ========================================================= */
+let state = {
+  habits: [],
+  logs: {}
+};
+
+const STORAGE_KEY = 'habit_ledger_state_v1';
+
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state.habits = parsed.habits || [];
+      state.logs = parsed.logs || {};
+    }
+  }catch(e){ console.error(e); }
+}
+
+function saveLocal(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* =========================================================
+   SUPABASE SYNC
+   Tabla esperada (ver SQL provisto en el chat):
+   - habit_data (id int primary key default 1, payload jsonb, updated_at timestamptz)
+   Usamos una sola fila (id=1) que guarda todo el estado en JSON.
+   Esto es simple y suficiente para un usuario individual.
+   ========================================================= */
+const ROW_ID = 1;
+let syncTimeout = null;
+
+function setSyncStatus(status, text){
+  const ind = document.getElementById('syncIndicator');
+  const txt = document.getElementById('syncText');
+  ind.className = 'sync-indicator ' + status;
+  txt.textContent = text;
+}
+
+async function fetchRemoteState(){
+  if(!supabaseReady){
+    setSyncStatus('error', 'Sin conexión a Supabase (modo local)');
+    return;
+  }
+  setSyncStatus('syncing', 'Sincronizando...');
+  try{
+    const { data, error } = await supabase
+      .from('habit_data')
+      .select('payload')
+      .eq('id', ROW_ID)
+      .maybeSingle();
+
+    if(error) throw error;
+
+    if(data && data.payload){
+      state.habits = data.payload.habits || [];
+      state.logs = data.payload.logs || {};
+      saveLocal();
+    } else {
+      // No existe fila aún: crearla con el estado local actual
+      await pushRemoteState();
+    }
+    setSyncStatus('ok', 'Sincronizado');
+    renderAll();
+  }catch(e){
+    console.error(e);
+    setSyncStatus('error', 'Error de sync — usando datos locales');
+  }
+}
+
+async function pushRemoteState(){
+  if(!supabaseReady) return;
+  setSyncStatus('syncing', 'Guardando...');
+  try{
+    const { error } = await supabase
+      .from('habit_data')
+      .upsert({ id: ROW_ID, payload: { habits: state.habits, logs: state.logs }, updated_at: new Date().toISOString() });
+    if(error) throw error;
+    setSyncStatus('ok', 'Sincronizado');
+  }catch(e){
+    console.error(e);
+    setSyncStatus('error', 'Error al guardar');
+  }
+}
+
+function persist(){
+  saveLocal();
+  if(syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(pushRemoteState, 600);
+}
+
+/* =========================================================
+   FECHAS / CALENDARIO
+   ========================================================= */
+let viewDate = new Date(); // mes actualmente mostrado
+viewDate.setDate(1);
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+
+function dateKey(year, month, day){
+  return `${year}-${pad(month+1)}-${pad(day)}`;
+}
+
+function todayKey(){
+  const t = new Date();
+  return dateKey(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+const MONTHS_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+/* =========================================================
+   RENDER: CALENDARIO
+   ========================================================= */
+function dayStatus(key){
+  const totalHabits = state.habits.length;
+  if(totalHabits === 0) return { status: 'empty', done: 0, total: 0 };
+
+  const log = state.logs[key] || {};
+  let done = 0;
+  state.habits.forEach(h => { if(log[h.id]) done++; });
+
+  if(done === 0) return { status: 'none', done, total: totalHabits };
+  if(done === totalHabits) return { status: 'complete', done, total: totalHabits };
+  return { status: 'partial', done, total: totalHabits };
+}
+
+function renderCalendar(){
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  document.getElementById('monthLabel').innerHTML =
+    `${MONTHS_ES[month]} <span class="year">${year}</span>`;
+
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+
+  const firstDay = new Date(year, month, 1);
+  // getDay(): 0=domingo..6=sabado -> queremos lunes=0
+  let startOffset = firstDay.getDay() - 1;
+  if(startOffset < 0) startOffset = 6;
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const tKey = todayKey();
+  const now = new Date();
+  const isCurrentMonthOrPast = (year < now.getFullYear()) ||
+    (year === now.getFullYear() && month <= now.getMonth());
+
+  for(let i=0; i<startOffset; i++){
+    const empty = document.createElement('div');
+    empty.className = 'day-cell empty';
+    grid.appendChild(empty);
+  }
+
+  for(let d=1; d<=daysInMonth; d++){
+    const key = dateKey(year, month, d);
+    const cell = document.createElement('div');
+    cell.className = 'day-cell';
+
+    const cellDate = new Date(year, month, d);
+    const isFuture = cellDate > now && key !== tKey;
+
+    if(key === tKey) cell.classList.add('today');
+    if(isFuture) cell.classList.add('future');
+
+    const info = dayStatus(key);
+
+    if(!isFuture){
+      if(info.status === 'complete') cell.classList.add('complete');
+      else if(info.status === 'partial') cell.classList.add('partial');
+      else if(info.status === 'none' && info.total > 0 && cellDate < now) cell.classList.add('missed');
+    }
+
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = d;
+    cell.appendChild(num);
+
+    if(info.status === 'partial' && !isFuture){
+      const dots = document.createElement('div');
+      dots.className = 'progress-dot';
+      const maxDots = Math.min(info.total, 5);
+      for(let i=0;i<maxDots;i++){
+        const dot = document.createElement('span');
+        const ratio = info.done / info.total;
+        if(i < Math.round(ratio * maxDots)) dot.classList.add('filled');
+        dots.appendChild(dot);
+      }
+      cell.appendChild(dots);
+    }
+
+    if(!isFuture){
+      cell.addEventListener('click', () => openDayModal(key, cellDate));
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+/* =========================================================
+   RENDER: STATS (streak, win rate)
+   ========================================================= */
+function computeStats(){
+  if(state.habits.length === 0){
+    return { streak: 0, winrate: 0 };
+  }
+
+  // Streak: días consecutivos completos terminando hoy o ayer
+  let streak = 0;
+  let cursor = new Date();
+  // si hoy no está completo todavía, empezamos a contar desde ayer
+  // (no rompe la racha si el día está en curso)
+  const tKey = todayKey();
+  const todayInfo = dayStatus(tKey);
+  if(todayInfo.status !== 'complete'){
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  while(true){
+    const key = dateKey(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+    const info = dayStatus(key);
+    if(info.status === 'complete'){
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+    if(streak > 3650) break; // safety
+  }
+
+  // Win rate del mes actual (días pasados con al menos un log)
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = now.getDate(); // hasta hoy
+  let totalDays = 0, completeDays = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const key = dateKey(year, month, d);
+    const info = dayStatus(key);
+    if(info.total > 0){
+      totalDays++;
+      if(info.status === 'complete') completeDays++;
+    }
+  }
+  const winrate = totalDays > 0 ? Math.round((completeDays/totalDays)*100) : 0;
+
+  return { streak, winrate };
+}
+
+function renderStats(){
+  const { streak, winrate } = computeStats();
+  document.getElementById('streakValue').textContent = streak;
+  document.getElementById('winrateValue').textContent = winrate + '%';
+}
+
+/* =========================================================
+   RENDER: HABITS LIST (gestión)
+   ========================================================= */
+function renderHabitsList(){
+  const list = document.getElementById('habitsList');
+  list.innerHTML = '';
+
+  if(state.habits.length === 0){
+    list.innerHTML = '<div class="empty-habits">No hay hábitos configurados todavía.<br>Agregá tu primer hábito para empezar a trackear.</div>';
+    return;
+  }
+
+  state.habits.forEach((h, idx) => {
+    const row = document.createElement('div');
+    row.className = 'habit-row';
+
+    const left = document.createElement('div');
+    left.className = 'left';
+
+    const index = document.createElement('span');
+    index.className = 'index';
+    index.textContent = pad(idx+1);
+
+    const input = document.createElement('input');
+    input.className = 'name-input';
+    input.value = h.name;
+    input.placeholder = 'Nombre del hábito';
+    input.addEventListener('change', () => {
+      h.name = input.value.trim() || 'Sin nombre';
+      input.value = h.name;
+      persist();
+      renderCalendar();
+      renderStats();
+    });
+
+    left.appendChild(index);
+    left.appendChild(input);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.textContent = '✕';
+    removeBtn.title = 'Eliminar hábito';
+    removeBtn.addEventListener('click', () => {
+      if(!confirm(`¿Eliminar el hábito "${h.name}"? Se borrará también su historial.`)) return;
+      state.habits = state.habits.filter(x => x.id !== h.id);
+      // limpiar logs de este habito
+      Object.keys(state.logs).forEach(key => {
+        if(state.logs[key] && state.logs[key][h.id] !== undefined){
+          delete state.logs[key][h.id];
+        }
+      });
+      persist();
+      renderAll();
+    });
+
+    row.appendChild(left);
+    row.appendChild(removeBtn);
+    list.appendChild(row);
+  });
+}
+
+function addHabit(){
+  const id = 'h_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  state.habits.push({ id, name: 'Nuevo hábito' });
+  persist();
+  renderHabitsList();
+  renderCalendar();
+  renderStats();
+
+  // focus en el nuevo input
+  requestAnimationFrame(() => {
+    const inputs = document.querySelectorAll('.habit-row .name-input');
+    const last = inputs[inputs.length - 1];
+    if(last){ last.focus(); last.select(); }
+  });
+}
+
+/* =========================================================
+   MODAL DE DÍA
+   ========================================================= */
+let currentModalKey = null;
+
+function openDayModal(key, dateObj){
+  currentModalKey = key;
+  const modal = document.getElementById('dayModal');
+  const label = document.getElementById('modalDateLabel');
+
+  const dayName = dateObj.toLocaleDateString('es-AR', { weekday: 'long' });
+  label.textContent = `${dayName} ${dateObj.getDate()} de ${MONTHS_ES[dateObj.getMonth()]}`;
+
+  renderModalChecklist();
+  modal.classList.add('open');
+}
+
+function closeDayModal(){
+  document.getElementById('dayModal').classList.remove('open');
+  currentModalKey = null;
+}
+
+function renderModalChecklist(){
+  const checklist = document.getElementById('modalChecklist');
+  const statusLine = document.getElementById('modalStatus');
+  checklist.innerHTML = '';
+
+  if(state.habits.length === 0){
+    checklist.innerHTML = '<div class="modal-empty">No tenés hábitos configurados.<br>Agregá hábitos desde el panel principal para empezar a registrar tu día.</div>';
+    statusLine.textContent = '';
+    statusLine.className = 'status-line';
+    return;
+  }
+
+  const log = state.logs[currentModalKey] || {};
+  let done = 0;
+
+  state.habits.forEach(h => {
+    const item = document.createElement('div');
+    item.className = 'check-item';
+    if(log[h.id]) { item.classList.add('checked'); done++; }
+
+    const box = document.createElement('div');
+    box.className = 'check-box';
+    box.innerHTML = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8L6.5 11.5L13 4" stroke="#0a0d12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = h.name;
+
+    item.appendChild(box);
+    item.appendChild(label);
+
+    item.addEventListener('click', () => toggleHabit(h.id));
+
+    checklist.appendChild(item);
+  });
+
+  const total = state.habits.length;
+  statusLine.textContent = `${done} / ${total} completados`;
+  statusLine.className = 'status-line';
+  if(done === total) statusLine.classList.add('complete');
+  else if(done === 0) statusLine.classList.add('missed');
+}
+
+function toggleHabit(habitId){
+  if(!currentModalKey) return;
+  if(!state.logs[currentModalKey]) state.logs[currentModalKey] = {};
+  state.logs[currentModalKey][habitId] = !state.logs[currentModalKey][habitId];
+
+  persist();
+  renderModalChecklist();
+  renderCalendar();
+  renderStats();
+}
+
+/* =========================================================
+   EVENTOS GLOBALES
+   ========================================================= */
+document.getElementById('prevMonth').addEventListener('click', () => {
+  viewDate.setMonth(viewDate.getMonth() - 1);
+  renderCalendar();
+});
+document.getElementById('nextMonth').addEventListener('click', () => {
+  viewDate.setMonth(viewDate.getMonth() + 1);
+  renderCalendar();
+});
+
+document.getElementById('addHabitBtn').addEventListener('click', addHabit);
+document.getElementById('closeModal').addEventListener('click', closeDayModal);
+document.getElementById('dayModal').addEventListener('click', (e) => {
+  if(e.target.id === 'dayModal') closeDayModal();
+});
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape') closeDayModal();
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+function renderAll(){
+  renderCalendar();
+  renderStats();
+  renderHabitsList();
+}
+
+loadLocal();
+renderAll();
+fetchRemoteState();
+</script>
+</body>
+</html>
