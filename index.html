@@ -642,11 +642,11 @@
 const SUPABASE_URL = 'https://psiqfraiudcuoznabpzu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzaXFmcmFpdWRjdW96bmFicHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTM1MzIsImV4cCI6MjA5Njg4OTUzMn0.ZgoR_BNrmtyx8IwT6VwJXYnq97p7IFO8VLQerxDNark';
 
-let supabase = null;
+let sb = null;
 let supabaseReady = false;
 try {
   if (SUPABASE_URL !== 'https://psiqfraiudcuoznabpzu.supabase.co' && SUPABASE_ANON_KEY !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzaXFmcmFpdWRjdW96bmFicHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTM1MzIsImV4cCI6MjA5Njg4OTUzMn0.ZgoR_BNrmtyx8IwT6VwJXYnq97p7IFO8VLQerxDNark') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     supabaseReady = true;
   }
 } catch (e) {
@@ -704,7 +704,7 @@ async function fetchRemoteState(){
   }
   setSyncStatus('syncing', 'Sincronizando...');
   try{
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('habit_data')
       .select('payload')
       .eq('id', ROW_ID)
@@ -732,7 +732,7 @@ async function pushRemoteState(){
   if(!supabaseReady) return;
   setSyncStatus('syncing', 'Guardando...');
   try{
-    const { error } = await supabase
+    const { error } = await sb
       .from('habit_data')
       .upsert({ id: ROW_ID, payload: { habits: state.habits, logs: state.logs }, updated_at: new Date().toISOString() });
     if(error) throw error;
